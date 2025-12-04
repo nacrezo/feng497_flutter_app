@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "205768493096",
+    "project_id": "diabetesmanager-397ad",
+    "storage_bucket": "diabetesmanager-397ad.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:205768493096:android:fb4969ef690596474c4d1d",
+        "android_client_info": {
+          "package_name": "com.example.feng497_flutter_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAOIm97tJ041e6g4h94UvXOnPhH5k58fBI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
