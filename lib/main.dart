@@ -5,6 +5,7 @@ import 'theme/app_theme.dart';
 import 'screens/home_screen.dart';
 import 'screens/chatbot_screen.dart';
 import 'screens/prediction_screen.dart';
+import 'screens/profile_screen.dart';
 
 import 'package:firebase_core/firebase_core.dart';
 
@@ -35,6 +36,10 @@ final _router = GoRouter(
     GoRoute(
       path: '/prediction',
       builder: (context, state) => const PredictionScreen(),
+    ),
+    GoRoute(
+      path: '/profile',
+      builder: (context, state) => const ProfileScreen(),
     ),
   ],
 );

@@ -11,6 +11,8 @@ class HomeScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final userProfile = ref.watch(userProfileProvider);
+
     return Scaffold(
       body: Container(
         decoration: const BoxDecoration(
@@ -42,28 +44,65 @@ class HomeScreen extends ConsumerWidget {
                             color: Colors.white70,
                           ),
                         ),
-                        Text(
-                          'Health Guardian',
-                          style: GoogleFonts.outfit(
-                            fontSize: 32,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
+                        userProfile.when(
+                          data: (data) => Text(
+                            data?['name'] ?? 'Health Guardian',
+                            style: GoogleFonts.outfit(
+                              fontSize: 32,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          ),
+                          loading: () => const SizedBox(
+                            height: 40,
+                            width: 200,
+                            child: Align(
+                              alignment: Alignment.centerLeft,
+                              child: LinearProgressIndicator(
+                                color: Colors.cyanAccent,
+                                backgroundColor: Colors.white10,
+                              ),
+                            ),
+                          ),
+                          error: (_, __) => Text(
+                            'Health Guardian',
+                            style: GoogleFonts.outfit(
+                              fontSize: 32,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
                           ),
                         ),
                       ],
                     ),
-                    IconButton(
-                      onPressed: () {
-                        ref.read(authServiceProvider).signOut();
-                      },
-                      icon: Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.1),
-                          shape: BoxShape.circle,
+                    Row(
+                      children: [
+                        IconButton(
+                          onPressed: () => context.push('/profile'),
+                          icon: Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.1),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(Icons.person, color: Colors.cyanAccent),
+                          ),
                         ),
-                        child: const Icon(Icons.logout, color: Colors.redAccent),
-                      ),
+                        const SizedBox(width: 8),
+                        IconButton(
+                          onPressed: () {
+                            ref.read(authServiceProvider).signOut();
+                          },
+                          icon: Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.1),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(Icons.logout, color: Colors.redAccent),
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),

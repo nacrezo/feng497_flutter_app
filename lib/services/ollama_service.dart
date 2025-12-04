@@ -49,7 +49,7 @@ class OllamaChatState extends StateNotifier<List<ChatMessage>> {
 
   OllamaChatState(this._ollamaService, this._ref) : super([
     ChatMessage(
-      text: "Hello! I'm your Local AI Assistant (Ollama). How can I help?",
+      text: "Hello! I'm your Local AI Assistant. How can I help?",
       isUser: false,
       timestamp: DateTime.now(),
     ),
