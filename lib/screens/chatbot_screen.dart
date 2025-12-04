@@ -40,64 +40,130 @@ class _ChatbotScreenState extends ConsumerState<ChatbotScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
 
     return Scaffold(
+      extendBodyBehindAppBar: true,
       appBar: AppBar(
-        title: Text('AI Assistant (Ollama)', style: GoogleFonts.outfit()),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        centerTitle: true,
+        title: GlassContainer(
+          blur: 10,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: Colors.white.withOpacity(0.1)),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: Text(
+              'AI Assistant',
+              style: GoogleFonts.outfit(
+                color: Colors.white,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios),
+          icon: Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.black.withOpacity(0.3),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.arrow_back_ios_new, size: 18),
+          ),
           onPressed: () => Navigator.pop(context),
         ),
       ),
-      body: Column(
-        children: [
-          Expanded(
-            child: ListView.builder(
-              controller: _scrollController,
-              padding: const EdgeInsets.all(16),
-              itemCount: messages.length,
-              itemBuilder: (context, index) {
-                final msg = messages[index];
-                return _buildMessageBubble(msg);
-              },
-            ),
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Color(0xFF0F172A), Color(0xFF1E293B)],
           ),
-          _buildQuickActions(ref),
-          _buildInputArea(ref),
-        ],
+        ),
+        child: SafeArea(
+          child: Column(
+            children: [
+              Expanded(
+                child: ListView.builder(
+                  controller: _scrollController,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+                  itemCount: messages.length,
+                  itemBuilder: (context, index) {
+                    final msg = messages[index];
+                    return _buildModernMessageBubble(msg);
+                  },
+                ),
+              ),
+              _buildModernQuickActions(ref),
+              _buildModernInputArea(ref),
+            ],
+          ),
+        ),
       ),
     );
   }
 
-  Widget _buildMessageBubble(ChatMessage msg) {
+  Widget _buildModernMessageBubble(ChatMessage msg) {
+    final isUser = msg.isUser;
     return Align(
-      alignment: msg.isUser ? Alignment.centerRight : Alignment.centerLeft,
+      alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
       child: Container(
         margin: const EdgeInsets.only(bottom: 16),
-        constraints: const BoxConstraints(maxWidth: 280),
-        padding: const EdgeInsets.all(16),
+        constraints: const BoxConstraints(maxWidth: 300),
         decoration: BoxDecoration(
-          color: msg.isUser ? Colors.cyanAccent.withOpacity(0.2) : Colors.white.withOpacity(0.1),
+          color: isUser 
+              ? Colors.cyanAccent.withOpacity(0.15) 
+              : Colors.white.withOpacity(0.05),
           borderRadius: BorderRadius.only(
-            topLeft: const Radius.circular(20),
-            topRight: const Radius.circular(20),
-            bottomLeft: Radius.circular(msg.isUser ? 20 : 0),
-            bottomRight: Radius.circular(msg.isUser ? 0 : 20),
+            topLeft: const Radius.circular(24),
+            topRight: const Radius.circular(24),
+            bottomLeft: Radius.circular(isUser ? 24 : 4),
+            bottomRight: Radius.circular(isUser ? 4 : 24),
           ),
           border: Border.all(
-            color: msg.isUser ? Colors.cyanAccent.withOpacity(0.5) : Colors.white.withOpacity(0.2),
+            color: isUser 
+                ? Colors.cyanAccent.withOpacity(0.3) 
+                : Colors.white.withOpacity(0.1),
+            width: 1,
           ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.1),
+              blurRadius: 8,
+              offset: const Offset(0, 4),
+            ),
+          ],
         ),
-        child: Text(
-          msg.text,
-          style: GoogleFonts.outfit(
-            color: Colors.white,
-            fontSize: 16,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+          child: Column(
+            crossAxisAlignment: isUser ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+            children: [
+              Text(
+                msg.text,
+                textAlign: TextAlign.left,
+                style: GoogleFonts.outfit(
+                  color: Colors.white.withOpacity(0.9),
+                  fontSize: 16,
+                  height: 1.4,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                "${msg.timestamp.hour}:${msg.timestamp.minute.toString().padLeft(2, '0')}",
+                style: GoogleFonts.outfit(
+                  color: Colors.white.withOpacity(0.4),
+                  fontSize: 10,
+                ),
+              ),
+            ],
           ),
         ),
       ),
     );
   }
 
-  Widget _buildQuickActions(WidgetRef ref) {
+  Widget _buildModernQuickActions(WidgetRef ref) {
     final actions = [
       "Current Glucose?",
       "What should I eat?",
@@ -106,17 +172,32 @@ class _ChatbotScreenState extends ConsumerState<ChatbotScreen> {
 
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
       child: Row(
         children: actions.map((action) {
           return Padding(
-            padding: const EdgeInsets.only(right: 8),
-            child: ActionChip(
-              label: Text(action, style: GoogleFonts.outfit(color: Colors.white)),
-              backgroundColor: Colors.white.withOpacity(0.1),
-              onPressed: () {
+            padding: const EdgeInsets.only(right: 10),
+            child: InkWell(
+              onTap: () {
                 ref.read(ollamaChatProvider.notifier).sendMessage(action);
               },
+              borderRadius: BorderRadius.circular(30),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.05),
+                  borderRadius: BorderRadius.circular(30),
+                  border: Border.all(color: Colors.white.withOpacity(0.1)),
+                ),
+                child: Text(
+                  action,
+                  style: GoogleFonts.outfit(
+                    color: Colors.cyanAccent,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
             ),
           );
         }).toList(),
@@ -124,43 +205,58 @@ class _ChatbotScreenState extends ConsumerState<ChatbotScreen> {
     );
   }
 
-  Widget _buildInputArea(WidgetRef ref) {
-    return GlassContainer(
-      borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-      blur: 10,
-      border: null,
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Row(
-          children: [
-            Expanded(
-              child: TextField(
-                controller: _controller,
-                style: GoogleFonts.outfit(color: Colors.white),
-                decoration: InputDecoration(
-                  hintText: 'Type a message...',
-                  hintStyle: GoogleFonts.outfit(color: Colors.white54),
-                  border: InputBorder.none,
-                ),
-                onSubmitted: (value) {
-                  if (value.isNotEmpty) {
-                    ref.read(ollamaChatProvider.notifier).sendMessage(value);
-                    _controller.clear();
-                  }
-                },
+  Widget _buildModernInputArea(WidgetRef ref) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0F172A).withOpacity(0.9),
+        border: Border(top: BorderSide(color: Colors.white.withOpacity(0.05))),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.05),
+                borderRadius: BorderRadius.circular(30),
+                border: Border.all(color: Colors.white.withOpacity(0.1)),
+              ),
+              child: Row(
+                children: [
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: TextField(
+                      controller: _controller,
+                      style: GoogleFonts.outfit(color: Colors.white),
+                      decoration: InputDecoration(
+                        hintText: 'Type your message...',
+                        hintStyle: GoogleFonts.outfit(color: Colors.white38),
+                        border: InputBorder.none,
+                        isDense: true,
+                        contentPadding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                      onSubmitted: (value) {
+                        if (value.isNotEmpty) {
+                          ref.read(ollamaChatProvider.notifier).sendMessage(value);
+                          _controller.clear();
+                        }
+                      },
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.send_rounded, color: Colors.cyanAccent),
+                    onPressed: () {
+                      if (_controller.text.isNotEmpty) {
+                        ref.read(ollamaChatProvider.notifier).sendMessage(_controller.text);
+                        _controller.clear();
+                      }
+                    },
+                  ),
+                ],
               ),
             ),
-            IconButton(
-              icon: const Icon(Icons.send, color: Colors.cyanAccent),
-              onPressed: () {
-                if (_controller.text.isNotEmpty) {
-                  ref.read(ollamaChatProvider.notifier).sendMessage(_controller.text);
-                  _controller.clear();
-                }
-              },
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
