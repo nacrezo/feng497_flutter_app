@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:glassmorphism_ui/glassmorphism_ui.dart';
-import '../services/ollama_service.dart';
+import '../services/gemini_service.dart';
 import '../models/chat_message.dart';
 
 class ChatbotScreen extends ConsumerStatefulWidget {
@@ -35,7 +35,7 @@ class _ChatbotScreenState extends ConsumerState<ChatbotScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final messages = ref.watch(ollamaChatProvider);
+    final messages = ref.watch(geminiChatProvider);
 
     WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
 
@@ -179,7 +179,7 @@ class _ChatbotScreenState extends ConsumerState<ChatbotScreen> {
             padding: const EdgeInsets.only(right: 10),
             child: InkWell(
               onTap: () {
-                ref.read(ollamaChatProvider.notifier).sendMessage(action);
+                ref.read(geminiChatProvider.notifier).sendMessage(action);
               },
               borderRadius: BorderRadius.circular(30),
               child: Container(
@@ -237,7 +237,7 @@ class _ChatbotScreenState extends ConsumerState<ChatbotScreen> {
                       ),
                       onSubmitted: (value) {
                         if (value.isNotEmpty) {
-                          ref.read(ollamaChatProvider.notifier).sendMessage(value);
+                          ref.read(geminiChatProvider.notifier).sendMessage(value);
                           _controller.clear();
                         }
                       },
@@ -247,7 +247,7 @@ class _ChatbotScreenState extends ConsumerState<ChatbotScreen> {
                     icon: const Icon(Icons.send_rounded, color: Colors.cyanAccent),
                     onPressed: () {
                       if (_controller.text.isNotEmpty) {
-                        ref.read(ollamaChatProvider.notifier).sendMessage(_controller.text);
+                        ref.read(geminiChatProvider.notifier).sendMessage(_controller.text);
                         _controller.clear();
                       }
                     },
