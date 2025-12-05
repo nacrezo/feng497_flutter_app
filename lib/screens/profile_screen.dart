@@ -119,8 +119,8 @@ class ProfileScreen extends ConsumerWidget {
                                 child: _buildInfoCard(
                                   'Sex',
                                   data['sex'] ?? '-',
-                                  Icons.male,
-                                  Colors.blueAccent,
+                                  (data['sex'] == 'Female') ? Icons.female : Icons.male,
+                                  (data['sex'] == 'Female') ? Colors.pinkAccent : Colors.blueAccent,
                                 ),
                               ),
                             ],
@@ -135,13 +135,13 @@ class ProfileScreen extends ConsumerWidget {
 
                           const SizedBox(height: 40),
                           
-                          // Logout Button (Moved here or duplicated)
+                          // Logout Button
                           SizedBox(
                             width: double.infinity,
                             height: 50,
                             child: ElevatedButton(
                               onPressed: () {
-                                ref.read(authServiceProvider).signOut();
+                                _showLogoutDialog(context, ref);
                               },
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: Colors.redAccent.withOpacity(0.2),
@@ -175,6 +175,42 @@ class ProfileScreen extends ConsumerWidget {
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  void _showLogoutDialog(BuildContext context, WidgetRef ref) {
+    showDialog(
+      context: context,
+      builder: (context) => GlassContainer(
+        blur: 10,
+        border: Border.all(color: Colors.white.withOpacity(0.2), width: 2),
+        borderRadius: BorderRadius.circular(20),
+        child: AlertDialog(
+          backgroundColor: Colors.black.withOpacity(0.8),
+          title: Text(
+            'Log Out',
+            style: GoogleFonts.outfit(color: Colors.white, fontWeight: FontWeight.bold),
+          ),
+          content: Text(
+            'Are you sure you want to log out?',
+            style: GoogleFonts.outfit(color: Colors.white70),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text('CANCEL', style: GoogleFonts.outfit(color: Colors.white)),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
+              onPressed: () {
+                Navigator.pop(context);
+                ref.read(authServiceProvider).signOut();
+              },
+              child: Text('LOG OUT', style: GoogleFonts.outfit(color: Colors.white)),
+            ),
+          ],
         ),
       ),
     );

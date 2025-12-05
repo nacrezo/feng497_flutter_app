@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:glassmorphism_ui/glassmorphism_ui.dart';
-
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../services/auth_service.dart';
 
@@ -91,7 +90,7 @@ class HomeScreen extends ConsumerWidget {
                         const SizedBox(width: 8),
                         IconButton(
                           onPressed: () {
-                            ref.read(authServiceProvider).signOut();
+                            _showLogoutDialog(context, ref);
                           },
                           icon: Container(
                             padding: const EdgeInsets.all(8),
@@ -171,6 +170,42 @@ class HomeScreen extends ConsumerWidget {
               style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
               onPressed: () => Navigator.pop(context),
               child: Text('CONFIRM', style: GoogleFonts.outfit(color: Colors.white)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showLogoutDialog(BuildContext context, WidgetRef ref) {
+    showDialog(
+      context: context,
+      builder: (context) => GlassContainer(
+        blur: 10,
+        border: Border.all(color: Colors.white.withOpacity(0.2), width: 2),
+        borderRadius: BorderRadius.circular(20),
+        child: AlertDialog(
+          backgroundColor: Colors.black.withOpacity(0.8),
+          title: Text(
+            'Log Out',
+            style: GoogleFonts.outfit(color: Colors.white, fontWeight: FontWeight.bold),
+          ),
+          content: Text(
+            'Are you sure you want to log out?',
+            style: GoogleFonts.outfit(color: Colors.white70),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text('CANCEL', style: GoogleFonts.outfit(color: Colors.white)),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
+              onPressed: () {
+                Navigator.pop(context);
+                ref.read(authServiceProvider).signOut();
+              },
+              child: Text('LOG OUT', style: GoogleFonts.outfit(color: Colors.white)),
             ),
           ],
         ),

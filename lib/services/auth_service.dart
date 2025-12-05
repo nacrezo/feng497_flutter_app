@@ -29,10 +29,17 @@ class AuthService {
     required String sex,
   }) async {
     // 1. Create user in Auth
-    final userCredential = await _auth.createUserWithEmailAndPassword(
-      email: email,
-      password: password,
-    );
+    final userCredential = await _auth
+        .createUserWithEmailAndPassword(
+          email: email,
+          password: password,
+        )
+        .timeout(const Duration(seconds: 15), onTimeout: () {
+      throw FirebaseAuthException(
+        code: 'network-request-failed',
+        message: 'Connection timed out. Please check your internet.',
+      );
+    });
 
     // 2. Create user document in Firestore
     if (userCredential.user != null) {

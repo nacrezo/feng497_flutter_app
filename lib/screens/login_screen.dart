@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:glassmorphism_ui/glassmorphism_ui.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -199,13 +198,17 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                               ),
                               const SizedBox(width: 16),
                               Expanded(
-                                child: TextField(
-                                  controller: _sexController,
+                                child: DropdownButtonFormField<String>(
+                                  value: _sexController.text.isNotEmpty ? _sexController.text : null,
+                                  dropdownColor: const Color(0xFF1A1F38),
                                   style: GoogleFonts.outfit(color: Colors.white),
                                   decoration: InputDecoration(
                                     labelText: 'Sex',
                                     labelStyle: GoogleFonts.outfit(color: Colors.white70),
-                                    prefixIcon: const Icon(Icons.male, color: Colors.cyanAccent),
+                                    prefixIcon: Icon(
+                                      _sexController.text == 'Female' ? Icons.female : Icons.male,
+                                      color: _sexController.text == 'Female' ? Colors.pinkAccent : Colors.cyanAccent,
+                                    ),
                                     enabledBorder: OutlineInputBorder(
                                       borderRadius: BorderRadius.circular(12),
                                       borderSide: BorderSide(color: Colors.white.withOpacity(0.3)),
@@ -215,6 +218,17 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                       borderSide: const BorderSide(color: Colors.cyanAccent),
                                     ),
                                   ),
+                                  items: ['Male', 'Female'].map((String value) {
+                                    return DropdownMenuItem<String>(
+                                      value: value,
+                                      child: Text(value),
+                                    );
+                                  }).toList(),
+                                  onChanged: (newValue) {
+                                    setState(() {
+                                      _sexController.text = newValue!;
+                                    });
+                                  },
                                 ),
                               ),
                             ],
@@ -224,7 +238,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             controller: _bloodTypeController,
                             style: GoogleFonts.outfit(color: Colors.white),
                             decoration: InputDecoration(
-                              labelText: 'Blood Type (e.g. A+)',
+                              labelText: 'Blood Type (e.g. ARh+)',
                               labelStyle: GoogleFonts.outfit(color: Colors.white70),
                               prefixIcon: const Icon(Icons.bloodtype, color: Colors.cyanAccent),
                               enabledBorder: OutlineInputBorder(

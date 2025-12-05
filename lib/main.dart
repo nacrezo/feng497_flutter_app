@@ -6,9 +6,7 @@ import 'screens/home_screen.dart';
 import 'screens/chatbot_screen.dart';
 import 'screens/prediction_screen.dart';
 import 'screens/profile_screen.dart';
-
 import 'package:firebase_core/firebase_core.dart';
-
 import 'services/auth_service.dart';
 import 'screens/login_screen.dart';
 
