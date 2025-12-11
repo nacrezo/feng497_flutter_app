@@ -52,6 +52,24 @@ class ProfileScreen extends ConsumerWidget {
                         color: Colors.white,
                       ),
                     ),
+                    const Spacer(),
+                    userProfileAsync.when(
+                      data: (data) => data != null
+                          ? IconButton(
+                              onPressed: () => _showEditProfileDialog(context, ref, data),
+                              icon: Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: Colors.cyanAccent.withOpacity(0.2),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(Icons.edit, color: Colors.cyanAccent),
+                              ),
+                            )
+                          : const SizedBox.shrink(),
+                      loading: () => const SizedBox.shrink(),
+                      error: (_, __) => const SizedBox.shrink(),
+                    ),
                   ],
                 ),
               ),
@@ -135,6 +153,39 @@ class ProfileScreen extends ConsumerWidget {
 
                           const SizedBox(height: 40),
                           
+                          // Edit Profile Button
+                          SizedBox(
+                            width: double.infinity,
+                            height: 50,
+                            child: ElevatedButton(
+                              onPressed: () => _showEditProfileDialog(context, ref, data),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.cyanAccent.withOpacity(0.2),
+                                foregroundColor: Colors.cyanAccent,
+                                side: const BorderSide(color: Colors.cyanAccent),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  const Icon(Icons.edit, size: 20),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    'EDIT PROFILE',
+                                    style: GoogleFonts.outfit(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 16,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                          
+                          const SizedBox(height: 16),
+                          
                           // Logout Button
                           SizedBox(
                             width: double.infinity,
@@ -172,6 +223,219 @@ class ProfileScreen extends ConsumerWidget {
                     ),
                   ),
                 ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showEditProfileDialog(BuildContext context, WidgetRef ref, Map<String, dynamic>? currentData) {
+    if (currentData == null) return;
+
+    final nameController = TextEditingController(text: currentData['name'] ?? '');
+    final ageController = TextEditingController(text: currentData['age']?.toString() ?? '');
+    final bloodTypeController = TextEditingController(text: currentData['bloodType'] ?? '');
+    final sexController = TextEditingController(text: currentData['sex'] ?? '');
+    
+    bool isLoading = false;
+    String? errorMessage;
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setState) => GlassContainer(
+          blur: 10,
+          border: Border.all(color: Colors.white.withOpacity(0.2), width: 2),
+          borderRadius: BorderRadius.circular(20),
+          child: AlertDialog(
+            backgroundColor: Colors.black.withOpacity(0.8),
+            title: Row(
+              children: [
+                const Icon(Icons.edit, color: Colors.cyanAccent),
+                const SizedBox(width: 10),
+                Text(
+                  'Edit Profile',
+                  style: GoogleFonts.outfit(color: Colors.white, fontWeight: FontWeight.bold),
+                ),
+              ],
+            ),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (errorMessage != null)
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      margin: const EdgeInsets.only(bottom: 20),
+                      decoration: BoxDecoration(
+                        color: Colors.redAccent.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: Colors.redAccent.withOpacity(0.5)),
+                      ),
+                      child: Text(
+                        errorMessage!,
+                        style: GoogleFonts.outfit(color: Colors.white, fontSize: 12),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  TextField(
+                    controller: nameController,
+                    style: GoogleFonts.outfit(color: Colors.white),
+                    decoration: InputDecoration(
+                      labelText: 'Full Name',
+                      labelStyle: GoogleFonts.outfit(color: Colors.white70),
+                      prefixIcon: const Icon(Icons.person_outline, color: Colors.cyanAccent),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: Colors.white.withOpacity(0.3)),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: Colors.cyanAccent),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: ageController,
+                          keyboardType: TextInputType.number,
+                          style: GoogleFonts.outfit(color: Colors.white),
+                          decoration: InputDecoration(
+                            labelText: 'Age',
+                            labelStyle: GoogleFonts.outfit(color: Colors.white70),
+                            prefixIcon: const Icon(Icons.calendar_today, color: Colors.cyanAccent),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide(color: Colors.white.withOpacity(0.3)),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: const BorderSide(color: Colors.cyanAccent),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: DropdownButtonFormField<String>(
+                          value: sexController.text.isNotEmpty ? sexController.text : null,
+                          dropdownColor: const Color(0xFF1A1F38),
+                          style: GoogleFonts.outfit(color: Colors.white),
+                          decoration: InputDecoration(
+                            labelText: 'Sex',
+                            labelStyle: GoogleFonts.outfit(color: Colors.white70),
+                            prefixIcon: Icon(
+                              sexController.text == 'Female' ? Icons.female : Icons.male,
+                              color: sexController.text == 'Female' ? Colors.pinkAccent : Colors.cyanAccent,
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide(color: Colors.white.withOpacity(0.3)),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: const BorderSide(color: Colors.cyanAccent),
+                            ),
+                          ),
+                          items: ['Male', 'Female'].map((String value) {
+                            return DropdownMenuItem<String>(
+                              value: value,
+                              child: Text(value),
+                            );
+                          }).toList(),
+                          onChanged: (newValue) {
+                            if (newValue != null) {
+                              sexController.text = newValue;
+                            }
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+                  TextField(
+                    controller: bloodTypeController,
+                    style: GoogleFonts.outfit(color: Colors.white),
+                    decoration: InputDecoration(
+                      labelText: 'Blood Type (e.g. ARh+)',
+                      labelStyle: GoogleFonts.outfit(color: Colors.white70),
+                      prefixIcon: const Icon(Icons.bloodtype, color: Colors.cyanAccent),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: Colors.white.withOpacity(0.3)),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: Colors.cyanAccent),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: isLoading ? null : () => Navigator.pop(dialogContext),
+                child: Text('CANCEL', style: GoogleFonts.outfit(color: Colors.white)),
+              ),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(backgroundColor: Colors.cyanAccent),
+                onPressed: isLoading ? null : () async {
+                  if (nameController.text.isEmpty ||
+                      ageController.text.isEmpty ||
+                      bloodTypeController.text.isEmpty ||
+                      sexController.text.isEmpty) {
+                    setState(() {
+                      errorMessage = 'Please fill in all fields';
+                    });
+                    return;
+                  }
+
+                  setState(() {
+                    isLoading = true;
+                    errorMessage = null;
+                  });
+
+                  try {
+                    await ref.read(authServiceProvider).updateProfile(
+                          name: nameController.text.trim(),
+                          age: int.parse(ageController.text.trim()),
+                          bloodType: bloodTypeController.text.trim(),
+                          sex: sexController.text.trim(),
+                        );
+                    
+                    if (context.mounted) {
+                      Navigator.pop(dialogContext);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            'Profile updated successfully!',
+                            style: GoogleFonts.outfit(),
+                          ),
+                          backgroundColor: Colors.green,
+                          behavior: SnackBarBehavior.floating,
+                        ),
+                      );
+                    }
+                  } catch (e) {
+                    setState(() {
+                      errorMessage = 'Error updating profile: ${e.toString()}';
+                      isLoading = false;
+                    });
+                  }
+                },
+                child: isLoading
+                    ? const SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                      )
+                    : Text('SAVE', style: GoogleFonts.outfit(color: Colors.black, fontWeight: FontWeight.bold)),
               ),
             ],
           ),

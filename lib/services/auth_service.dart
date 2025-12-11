@@ -61,6 +61,31 @@ class AuthService {
   Future<void> signOut() async {
     await _auth.signOut();
   }
+
+  // Update user profile
+  Future<void> updateProfile({
+    String? name,
+    int? age,
+    String? bloodType,
+    String? sex,
+  }) async {
+    final user = _auth.currentUser;
+    if (user == null) {
+      throw Exception('No user logged in');
+    }
+
+    final updateData = <String, dynamic>{};
+    if (name != null) updateData['name'] = name;
+    if (age != null) updateData['age'] = age;
+    if (bloodType != null) updateData['bloodType'] = bloodType;
+    if (sex != null) updateData['sex'] = sex;
+    updateData['updatedAt'] = FieldValue.serverTimestamp();
+
+    await FirebaseFirestore.instance
+        .collection('users')
+        .doc(user.uid)
+        .update(updateData);
+  }
 }
 
 final authServiceProvider = Provider<AuthService>((ref) => AuthService());
