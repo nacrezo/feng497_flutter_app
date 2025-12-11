@@ -46,6 +46,11 @@ app.*.map.json
 
 # Environment Variables
 .env
+.env.local
+.env.*.local
+
+# Google Maps API Key in AndroidManifest (if hardcoded)
+# Note: API key should be in .env file, not in AndroidManifest.xml
 
 # Firebase
 google-services.json

@@ -130,7 +130,7 @@ class HomeScreen extends ConsumerWidget {
         ),
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _showEmergencyDialog(context),
+        onPressed: () => context.push('/emergency-onboarding'),
         backgroundColor: Colors.redAccent,
         icon: const Icon(Icons.warning_amber_rounded, color: Colors.white),
         label: Text(

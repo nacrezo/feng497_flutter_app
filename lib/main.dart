@@ -8,13 +8,20 @@ import 'screens/home_screen.dart';
 import 'screens/chatbot_screen.dart';
 import 'screens/prediction_screen.dart';
 import 'screens/profile_screen.dart';
+import 'screens/drone_tracking_screen.dart';
+import 'screens/emergency_onboarding_screen.dart';
 import 'services/auth_service.dart';
 import 'screens/login_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
-  await dotenv.load(fileName: ".env");
+  try {
+    await dotenv.load(fileName: ".env");
+  } catch (e) {
+    print('Warning: Could not load .env file: $e');
+    // Continue without .env file - API key will be read from build.gradle.kts
+  }
   runApp(const ProviderScope(child: MyApp()));
 }
 
@@ -40,6 +47,14 @@ final _router = GoRouter(
     GoRoute(
       path: '/profile',
       builder: (context, state) => const ProfileScreen(),
+    ),
+    GoRoute(
+      path: '/drone-tracking',
+      builder: (context, state) => const DroneTrackingScreen(),
+    ),
+    GoRoute(
+      path: '/emergency-onboarding',
+      builder: (context, state) => const EmergencyOnboardingScreen(),
     ),
   ],
 );
