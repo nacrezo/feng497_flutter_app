@@ -7,9 +7,13 @@ import 'package:glassmorphism_ui/glassmorphism_ui.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:go_router/go_router.dart';
 import '../services/drone_service.dart';
 import '../services/mock_glucose_service.dart';
 import '../services/location_service.dart';
+import '../services/auth_service.dart';
 
 class DroneTrackingScreen extends ConsumerStatefulWidget {
   const DroneTrackingScreen({super.key});
@@ -39,6 +43,29 @@ class _DroneTrackingScreenState extends ConsumerState<DroneTrackingScreen> {
   }
 
   Future<void> _getLocationAndDispatch() async {
+    // Check connectivity
+    final connectivityResult = await Connectivity().checkConnectivity();
+    if (connectivityResult.contains(ConnectivityResult.none)) {
+        if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'No internet connection. Please check your network.',
+              style: GoogleFonts.outfit(),
+            ),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+             action: SnackBarAction(
+              label: 'Retry',
+              textColor: Colors.white,
+              onPressed: () => _getLocationAndDispatch(),
+            ),
+          ),
+        );
+      }
+      return;
+    }
+
     final locationService = ref.read(locationServiceProvider);
     final position = await locationService.getCurrentLocation();
     
@@ -315,6 +342,31 @@ class _DroneTrackingScreenState extends ConsumerState<DroneTrackingScreen> {
 
           // Emergency Alert Card
           _buildEmergencyCard(currentGlucose),
+          const SizedBox(height: 20),
+
+           // Call Emergency Contact Button
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: () => _callEmergencyContact(),
+              icon: const Icon(Icons.phone_in_talk, color: Colors.white),
+              label: Text(
+                'CALL EMERGENCY CONTACT',
+                style: GoogleFonts.outfit(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                  color: Colors.white,
+                ),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.redAccent, // Red for emergency
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+              ),
+            ),
+          ),
           const SizedBox(height: 30),
 
           // Drone Status Card
@@ -996,6 +1048,104 @@ class _DroneTrackingScreenState extends ConsumerState<DroneTrackingScreen> {
           color: Colors.green,
         );
     }
+  }
+
+  Future<void> _callEmergencyContact() async {
+    final userProfile = ref.read(userProfileProvider).value;
+    if (userProfile == null) return;
+
+    final List<dynamic>? contactsList = userProfile['emergencyContacts'];
+    final String? legacyNumber = userProfile['emergencyContactNumber'] as String?;
+
+    // Collect all valid contacts
+    final List<Map<String, String>> validContacts = [];
+    
+    if (contactsList != null) {
+      for (var c in contactsList) {
+        if (c is Map && c['number'] != null && (c['number'] as String).isNotEmpty) {
+           validContacts.add({'name': c['name'] ?? 'Contact', 'number': c['number']});
+        }
+      }
+    } else if (legacyNumber != null && legacyNumber.isNotEmpty) {
+       validContacts.add({'name': 'Emergency Contact', 'number': legacyNumber});
+    }
+
+    if (validContacts.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+           SnackBar(
+            content: Text('No emergency contact number found.', style: GoogleFonts.outfit()),
+            backgroundColor: Colors.orange,
+              action: SnackBarAction(
+                label: 'Add',
+                textColor: Colors.white,
+                onPressed: () {
+                   context.push('/emergency-contact');
+                },
+              )
+          ),
+        );
+      }
+      return;
+    }
+
+    if (validContacts.length == 1) {
+      await _launchCaller(validContacts.first['number']!);
+    } else {
+      // Show selection dialog
+      if (mounted) {
+        showDialog(
+          context: context, 
+          builder: (context) => GlassContainer(
+            blur: 10,
+            border: Border.all(color: Colors.white.withOpacity(0.2)),
+            borderRadius: BorderRadius.circular(20),
+            child: AlertDialog(
+               backgroundColor: Colors.black.withOpacity(0.8),
+               title: Text('Select Contact', style: GoogleFonts.outfit(color: Colors.white, fontWeight: FontWeight.bold)),
+               content: Column(
+                 mainAxisSize: MainAxisSize.min,
+                 children: validContacts.map((c) => ListTile(
+                   leading: const Icon(Icons.phone, color: Colors.cyanAccent),
+                   title: Text(c['name']!, style: GoogleFonts.outfit(color: Colors.white)),
+                   subtitle: Text(c['number']!, style: GoogleFonts.outfit(color: Colors.white70)),
+                   onTap: () {
+                     Navigator.pop(context);
+                     _launchCaller(c['number']!);
+                   },
+                 )).toList(),
+               ),
+               actions: [
+                 TextButton(
+                   onPressed: () => Navigator.pop(context),
+                   child: Text('Cancel', style: GoogleFonts.outfit(color: Colors.white70)),
+                 ),
+               ],
+            ),
+          )
+        );
+      }
+    }
+  }
+
+  Future<void> _launchCaller(String number) async {
+      final sanitizedNumber = number.replaceAll(RegExp(r'\s+'), '');
+      final Uri launchUri = Uri(
+        scheme: 'tel',
+        path: sanitizedNumber,
+      );
+      if (await canLaunchUrl(launchUri)) {
+        await launchUrl(launchUri);
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Could not launch dialer for $number', style: GoogleFonts.outfit()),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
   }
 }
 

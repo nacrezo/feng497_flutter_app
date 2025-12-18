@@ -68,6 +68,7 @@ class AuthService {
     int? age,
     String? bloodType,
     String? sex,
+    List<Map<String, String>>? emergencyContacts,
   }) async {
     final user = _auth.currentUser;
     if (user == null) {
@@ -79,12 +80,37 @@ class AuthService {
     if (age != null) updateData['age'] = age;
     if (bloodType != null) updateData['bloodType'] = bloodType;
     if (sex != null) updateData['sex'] = sex;
+    if (emergencyContacts != null) updateData['emergencyContacts'] = emergencyContacts;
     updateData['updatedAt'] = FieldValue.serverTimestamp();
 
     await FirebaseFirestore.instance
         .collection('users')
         .doc(user.uid)
         .update(updateData);
+  }
+
+  // Add an emergency contact
+  Future<void> addEmergencyContact(String name, String number) async {
+    final user = _auth.currentUser;
+    if (user == null) throw Exception('No user logged in');
+
+    await FirebaseFirestore.instance.collection('users').doc(user.uid).update({
+      'emergencyContacts': FieldValue.arrayUnion([
+        {'name': name, 'number': number}
+      ])
+    });
+  }
+
+  // Remove an emergency contact
+  Future<void> removeEmergencyContact(String name, String number) async {
+    final user = _auth.currentUser;
+    if (user == null) throw Exception('No user logged in');
+
+    await FirebaseFirestore.instance.collection('users').doc(user.uid).update({
+      'emergencyContacts': FieldValue.arrayRemove([
+        {'name': name, 'number': number}
+      ])
+    });
   }
 }
 

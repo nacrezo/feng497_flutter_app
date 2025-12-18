@@ -185,6 +185,39 @@ class ProfileScreen extends ConsumerWidget {
                           ),
                           
                           const SizedBox(height: 16),
+
+                          // Emergency Contact Button
+                          SizedBox(
+                            width: double.infinity,
+                            height: 50,
+                            child: ElevatedButton(
+                              onPressed: () => context.push('/emergency-contact'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.redAccent.withOpacity(0.2),
+                                foregroundColor: Colors.redAccent,
+                                side: const BorderSide(color: Colors.redAccent),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  const Icon(Icons.contact_phone, size: 20),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    'EMERGENCY CONTACT',
+                                    style: GoogleFonts.outfit(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 16,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                          
+                          const SizedBox(height: 16),
                           
                           // Logout Button
                           SizedBox(
