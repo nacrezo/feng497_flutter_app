@@ -13,6 +13,8 @@ class GlucoseReading {
   });
 }
 
+final emergencyAckProvider = StateProvider<bool>((ref) => false);
+
 final glucoseProvider = StreamProvider<List<GlucoseReading>>((ref) async* {
   final random = Random();
   double currentValue = 110.0;
@@ -20,10 +22,20 @@ final glucoseProvider = StreamProvider<List<GlucoseReading>>((ref) async* {
   while (true) {
     await Future.delayed(const Duration(seconds: 1));
     
-    // Simulate slight fluctuations
-    currentValue += (random.nextDouble() - 0.5) * 5;
-    if (currentValue < 70) currentValue = 70;
-    if (currentValue > 250) currentValue = 250;
+    // Force rapid drop for testing
+    double change = -10.0; 
+    
+    // 5% chance to start a trend
+    if (random.nextDouble() < 0.05) {
+       change += (random.nextDouble() - 0.5) * 20; 
+    }
+
+    currentValue += change;
+    
+    // Allow critical values for testing (Hypo < 70, Hyper > 250)
+    // Constrain to "survivable" but critical limits
+    if (currentValue < 40) currentValue = 40;
+    if (currentValue > 400) currentValue = 400;
 
     final now = DateTime.now();
     final history = List.generate(20, (index) {

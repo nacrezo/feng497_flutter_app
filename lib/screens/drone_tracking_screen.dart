@@ -9,7 +9,9 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:camera/camera.dart';
 import 'package:go_router/go_router.dart';
+import 'package:flutter_phone_direct_caller/flutter_phone_direct_caller.dart';
 import '../services/drone_service.dart';
 import '../services/mock_glucose_service.dart';
 import '../services/location_service.dart';
@@ -22,27 +24,100 @@ class DroneTrackingScreen extends ConsumerStatefulWidget {
   ConsumerState<DroneTrackingScreen> createState() => _DroneTrackingScreenState();
 }
 
-class _DroneTrackingScreenState extends ConsumerState<DroneTrackingScreen> {
+class _DroneTrackingScreenState extends ConsumerState<DroneTrackingScreen> with WidgetsBindingObserver {
   GoogleMapController? _mapController;
-  late final BitmapDescriptor _droneIcon;
-  late final BitmapDescriptor _userIcon;
+  CameraController? _cameraController;
+  bool _isCameraInitialized = false;
+  bool _shouldShowCamera = false;
   Set<Marker> _markers = {};
   Set<Polyline> _polylines = {};
-
+  BitmapDescriptor _droneIcon = BitmapDescriptor.defaultMarker;
+  BitmapDescriptor _userIcon = BitmapDescriptor.defaultMarker;
+  
   @override
   void initState() {
     super.initState();
-    // Initialize with default markers
-    _droneIcon = BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueCyan);
-    _userIcon = BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed);
+    WidgetsBinding.instance.addObserver(this);
+    _createMarkerIcons();
     
-    // Get user location and dispatch drone
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _getLocationAndDispatch();
+      final uri = GoRouterState.of(context).uri;
+      final isAuto = uri.queryParameters['auto'] == 'true';
+
+      if (isAuto) {
+        _shouldShowCamera = true;
+        _initializeCamera();
+      }
+
+      // Small delay to allow UI to build
+      Future.delayed(const Duration(milliseconds: 500), () {
+        if (mounted) _getLocationAndDispatch(isAuto: isAuto);
+      });
     });
   }
+  
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _mapController?.dispose();
+    _cameraController?.dispose();
+    super.dispose();
+  }
 
-  Future<void> _getLocationAndDispatch() async {
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    final CameraController? cameraController = _cameraController;
+
+    // App state changed before we got the chance to initialize.
+    if (cameraController == null || !_cameraController!.value.isInitialized) {
+      return;
+    }
+
+    if (state == AppLifecycleState.inactive) {
+      cameraController.dispose();
+      if (mounted) {
+         setState(() {
+           _isCameraInitialized = false;
+           // We do NOT set _shouldShowCamera = false here, because we want it back on resume
+         });
+      }
+    } else if (state == AppLifecycleState.resumed) {
+      if (_shouldShowCamera) {
+        _initializeCamera();
+      }
+    }
+  }
+
+  Future<void> _createMarkerIcons() async {
+    _droneIcon = BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueCyan);
+    _userIcon = BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed);
+  }
+
+  Future<void> _initializeCamera() async {
+    final cameras = await availableCameras();
+    if (cameras.isEmpty) return;
+
+    _cameraController = CameraController(
+      cameras.first, // Use back camera
+      ResolutionPreset.medium,
+      enableAudio: true,
+    );
+
+    try {
+      await _cameraController!.initialize();
+      if (mounted) {
+        setState(() {
+          _isCameraInitialized = true;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        print('Camera initialization error: $e');
+      }
+    }
+  }
+
+  Future<void> _getLocationAndDispatch({bool isAuto = false}) async {
     // Check connectivity
     final connectivityResult = await Connectivity().checkConnectivity();
     if (connectivityResult.contains(ConnectivityResult.none)) {
@@ -58,7 +133,7 @@ class _DroneTrackingScreenState extends ConsumerState<DroneTrackingScreen> {
              action: SnackBarAction(
               label: 'Retry',
               textColor: Colors.white,
-              onPressed: () => _getLocationAndDispatch(),
+              onPressed: () => _getLocationAndDispatch(isAuto: isAuto),
             ),
           ),
         );
@@ -66,38 +141,80 @@ class _DroneTrackingScreenState extends ConsumerState<DroneTrackingScreen> {
       return;
     }
 
+    // Optimization: Check if we already have the location from a previous session or background update
+    final droneService = ref.read(droneServiceProvider);
+    if (droneService.hasUserLocation) {
+       print('📍 Using existing location: ${droneService.userLat}, ${droneService.userLon}');
+       droneService.dispatchDrone();
+       WidgetsBinding.instance.addPostFrameCallback((_) {
+         _initializeMarkers();
+       });
+       
+       // Trigger auto call after successful dispatch
+       if (isAuto && mounted) {
+         _callEmergencyContact(isAuto: true);
+       }
+       return;
+    }
+
     final locationService = ref.read(locationServiceProvider);
-    final position = await locationService.getCurrentLocation();
     
-    if (position != null) {
-      // Debug: Print location info
-      print('📍 User Location: ${position.latitude}, ${position.longitude}');
-      print('📍 Accuracy: ${position.accuracy}m');
-      print('📍 Timestamp: ${position.timestamp}');
-      
-      // Set user location in drone service
-      ref.read(droneServiceProvider).setUserLocation(
-        position.latitude,
-        position.longitude,
+    try {
+      // Add timeout to prevent infinite loading
+      final position = await locationService.getCurrentLocation().timeout(
+        const Duration(seconds: 10),
+        onTimeout: () {
+          print('Location timed out');
+          return null;
+        }
       );
-      
-      final droneService = ref.read(droneServiceProvider);
-      print('📍 Base Location: ${droneService.baseLat}, ${droneService.baseLon}');
-      
-      // Dispatch drone
-      ref.read(droneServiceProvider).dispatchDrone();
-      
-      // Initialize markers after location is set
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        _initializeMarkers();
-      });
-    } else {
+    
+      if (position != null) {
+        // Debug: Print location info
+        print('📍 User Location: ${position.latitude}, ${position.longitude}');
+        
+        // Set user location in drone service
+        ref.read(droneServiceProvider).setUserLocation(
+          position.latitude,
+          position.longitude,
+        );
+        
+        print('📍 Base Location: ${droneService.baseLat}, ${droneService.baseLon}');
+        
+        // Dispatch drone
+        ref.read(droneServiceProvider).dispatchDrone();
+        
+        // Initialize markers after location is set
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _initializeMarkers();
+        });
+
+        // Trigger auto call after successful dispatch
+        if (isAuto && mounted) {
+          _callEmergencyContact(isAuto: true);
+        }
+      } else {
+        _showLocationError(isAuto: isAuto);
+      }
+    } catch (e) {
+      print('Location error: $e');
+      _showLocationError(isAuto: isAuto);
+    }
+  }
+
+  void _showLocationError({bool isAuto = false}) {
+      // If auto emergency and location fails, we MUST still try to call
+      if (isAuto && mounted) {
+        // We delay slightly to let the error snackbar show, but we must facilitate the call
+         _callEmergencyContact(isAuto: true);
+      }
+
       // Show error if location not available
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              'Konum alınamadı. Lütfen konum iznini verin.',
+              'Konum alınamadı. Lütfen gps/konum iznini kontrol edin.',
               style: GoogleFonts.outfit(),
             ),
             backgroundColor: Colors.red,
@@ -105,12 +222,11 @@ class _DroneTrackingScreenState extends ConsumerState<DroneTrackingScreen> {
             action: SnackBarAction(
               label: 'Tekrar Dene',
               textColor: Colors.white,
-              onPressed: () => _getLocationAndDispatch(),
+              onPressed: () => _getLocationAndDispatch(isAuto: isAuto),
             ),
           ),
         );
       }
-    }
   }
 
   void _onMapCreated(GoogleMapController controller) {
@@ -185,12 +301,6 @@ class _DroneTrackingScreenState extends ConsumerState<DroneTrackingScreen> {
   }
 
   @override
-  void dispose() {
-    _mapController?.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
     final droneStateAsync = ref.watch(droneStateProvider);
     final glucoseAsync = ref.watch(glucoseProvider);
@@ -202,6 +312,17 @@ class _DroneTrackingScreenState extends ConsumerState<DroneTrackingScreen> {
           _updateMarkers(droneState);
         }
       });
+    });
+
+    // Auto-activate camera if glucose goes critical while on this screen
+    ref.listen<AsyncValue<List<GlucoseReading>>>(glucoseProvider, (previous, next) {
+       next.whenData((readings) {
+          if (readings.isEmpty) return;
+          final latest = readings.lastWhere((r) => !r.isPrediction, orElse: () => readings.last);
+          if (!_isCameraInitialized && (latest.value <= 70 || latest.value >= 250)) {
+             _initializeCamera();
+          }
+       });
     });
 
     return PopScope(
@@ -221,15 +342,18 @@ class _DroneTrackingScreenState extends ConsumerState<DroneTrackingScreen> {
             if (shouldPop && mounted) {
               // Cancel drone dispatch
               ref.read(droneServiceProvider).cancelDispatch();
+              // Acknowledge emergency to prevent loop
+              ref.read(emergencyAckProvider.notifier).state = true;
               if (context.mounted) {
-                Navigator.of(context).pop();
+                context.go('/');
               }
             }
           });
         } else {
           // No active dispatch, allow normal pop
+           ref.read(emergencyAckProvider.notifier).state = true;
           if (context.mounted) {
-            Navigator.of(context).pop();
+            context.go('/');
           }
         }
       },
@@ -294,13 +418,16 @@ class _DroneTrackingScreenState extends ConsumerState<DroneTrackingScreen> {
                     if (shouldPop && mounted) {
                       // Cancel drone dispatch
                       ref.read(droneServiceProvider).cancelDispatch();
+                      // Acknowledge emergency to prevent loop
+                      ref.read(emergencyAckProvider.notifier).state = true;
                       if (context.mounted) {
-                        Navigator.pop(context);
+                        context.go('/');
                       }
                     }
                   } else {
+                    ref.read(emergencyAckProvider.notifier).state = true;
                     if (context.mounted) {
-                      Navigator.pop(context);
+                      context.go('/');
                     }
                   }
                 },
@@ -343,6 +470,12 @@ class _DroneTrackingScreenState extends ConsumerState<DroneTrackingScreen> {
           // Emergency Alert Card
           _buildEmergencyCard(currentGlucose),
           const SizedBox(height: 20),
+          
+          // Camera Section (Situation Awareness)
+          if (_isCameraInitialized && _cameraController != null) ...[
+            _buildCameraSection(),
+             const SizedBox(height: 20),
+          ],
 
            // Call Emergency Contact Button
           SizedBox(
@@ -1050,7 +1183,65 @@ class _DroneTrackingScreenState extends ConsumerState<DroneTrackingScreen> {
     }
   }
 
-  Future<void> _callEmergencyContact() async {
+  Widget _buildCameraSection() {
+    return GlassContainer(
+      height: 250,
+      width: double.infinity,
+      borderRadius: BorderRadius.circular(20),
+      blur: 10,
+      border: Border.all(color: Colors.redAccent.withOpacity(0.5), width: 2),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(20),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            CameraPreview(_cameraController!),
+            Positioned(
+              top: 10,
+              left: 10,
+              child: Container(
+                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                 decoration: BoxDecoration(
+                   color: Colors.redAccent,
+                   borderRadius: BorderRadius.circular(20),
+                 ),
+                 child: Row(
+                   mainAxisSize: MainAxisSize.min,
+                   children: [
+                     const Icon(Icons.emergency_recording, color: Colors.white, size: 16),
+                     const SizedBox(width: 8),
+                     Text(
+                       'Live Situation Feed',
+                       style: GoogleFonts.outfit(
+                         color: Colors.white,
+                         fontWeight: FontWeight.bold,
+                         fontSize: 12,
+                       ),
+                     ),
+                   ],
+                 ),
+              ),
+            ),
+             Positioned(
+              bottom: 10,
+              left: 10,
+              right: 10,
+              child: Text(
+                'Camera active for emergency responders',
+                textAlign: TextAlign.center,
+                style: GoogleFonts.outfit(
+                  color: Colors.white70,
+                  fontSize: 12,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _callEmergencyContact({bool isAuto = false}) async {
     final userProfile = ref.read(userProfileProvider).value;
     if (userProfile == null) return;
 
@@ -1071,21 +1262,20 @@ class _DroneTrackingScreenState extends ConsumerState<DroneTrackingScreen> {
     }
 
     if (validContacts.isEmpty) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-           SnackBar(
-            content: Text('No emergency contact number found.', style: GoogleFonts.outfit()),
-            backgroundColor: Colors.orange,
-              action: SnackBarAction(
-                label: 'Add',
-                textColor: Colors.white,
-                onPressed: () {
-                   context.push('/emergency-contact');
-                },
-              )
-          ),
-        );
-      }
+       // ... existing error handling ...
+       if (mounted && !isAuto) {
+         // Show error only if manual, or maybe show it anyway? 
+         // For auto, better to not block or maybe show a toast.
+         ScaffoldMessenger.of(context).showSnackBar(
+           SnackBar(content: Text('No emergency contacts found!', style: GoogleFonts.outfit())),
+         );
+       }
+       return;
+    }
+
+    // Auto Logic: Call the first one immediately
+    if (isAuto) {
+      await _launchCaller(validContacts.first['number']!);
       return;
     }
 
@@ -1128,8 +1318,20 @@ class _DroneTrackingScreenState extends ConsumerState<DroneTrackingScreen> {
     }
   }
 
+
+
   Future<void> _launchCaller(String number) async {
       final sanitizedNumber = number.replaceAll(RegExp(r'\s+'), '');
+      
+      // Try direct call first
+      try {
+        final bool? res = await FlutterPhoneDirectCaller.callNumber(sanitizedNumber);
+        if (res == true) return;
+      } catch (e) {
+        print('Direct call failed: $e');
+      }
+
+      // Fallback to dialer
       final Uri launchUri = Uri(
         scheme: 'tel',
         path: sanitizedNumber,
@@ -1138,12 +1340,9 @@ class _DroneTrackingScreenState extends ConsumerState<DroneTrackingScreen> {
         await launchUrl(launchUri);
       } else {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Could not launch dialer for $number', style: GoogleFonts.outfit()),
-              backgroundColor: Colors.red,
-            ),
-          );
+           ScaffoldMessenger.of(context).showSnackBar(
+             SnackBar(content: Text('Could not launch dialer for $number', style: GoogleFonts.outfit())),
+           );
         }
       }
   }

@@ -3,14 +3,75 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:glassmorphism_ui/glassmorphism_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:permission_handler/permission_handler.dart';
 import '../services/auth_service.dart';
+import '../services/mock_glucose_service.dart';
 
-class HomeScreen extends ConsumerWidget {
+class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends ConsumerState<HomeScreen> {
+  bool _arePermissionsChecked = false;
+  
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _requestPermissions();
+    });
+  }
+
+  Future<void> _requestPermissions() async {
+    // Request all necessary permissions upfront to ensure emergency features work smoothly
+    Map<Permission, PermissionStatus> statuses = await [
+      Permission.location,
+      Permission.camera,
+      Permission.microphone,
+      Permission.contacts,
+      Permission.phone, 
+    ].request();
+
+    // Log or handle denial if necessary, but for now just requesting is enough
+    print("Permissions status: $statuses");
+    
+    if (mounted) {
+      setState(() {
+        _arePermissionsChecked = true;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final userProfile = ref.watch(userProfileProvider);
+    
+    // Auto-Emergency Trigger
+    ref.listen(glucoseProvider, (previous, next) {
+      if (!_arePermissionsChecked) return; // Wait for permissions
+
+      next.whenData((readings) {
+        if (readings.isEmpty) return;
+        final latest = readings.lastWhere((r) => !r.isPrediction, orElse: () => readings.last);
+        
+        final isCritical = latest.value <= 70 || latest.value >= 250;
+        final isNormal = latest.value > 75 && latest.value < 245; // Hysteresis
+        final isAcknowledged = ref.read(emergencyAckProvider);
+
+        if (isCritical && !isAcknowledged) {
+           final location = GoRouterState.of(context).uri.toString();
+           if (!location.startsWith('/drone-tracking')) {
+              context.go('/drone-tracking?auto=true');
+           }
+        } else if (isNormal && isAcknowledged) {
+           // Reset acknowledgement when glucose returns to safe range
+           ref.read(emergencyAckProvider.notifier).state = false;
+        }
+      });
+    });
 
     return Scaffold(
       body: Container(
